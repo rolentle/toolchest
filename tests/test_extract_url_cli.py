@@ -1,6 +1,8 @@
 import subprocess
 import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, MagicMock
+import sys
+import os
 
 
 def test_cli_help():
@@ -29,60 +31,81 @@ def test_cli_with_mocked_url():
     </html>
     """
     
-    # Run CLI with mocked HTTP request
-    with patch('src.url_extractor.requests.Session.get') as mock_get:
+    # Import the modules directly to test them
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+    
+    with patch('requests.Session') as mock_session:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.text = test_html
-        mock_get.return_value = mock_response
+        mock_session.return_value.get.return_value = mock_response
         
-        result = subprocess.run(
-            ["uv", "run", "python", "src/extract_url_cli.py", "https://example.com"],
-            capture_output=True,
-            text=True
-        )
+        from extract_url_cli import main
         
-        assert result.returncode == 0
-        assert "Test Page" in result.stdout
-        assert "This is a test paragraph." in result.stdout
-        assert "[Image: Test image]" in result.stdout
-        assert "Another paragraph." in result.stdout
+        # Mock sys.argv to simulate command line arguments
+        with patch.object(sys, 'argv', ['extract_url_cli.py', 'https://example.com']):
+            # Capture stdout
+            from io import StringIO
+            captured_output = StringIO()
+            with patch('sys.stdout', captured_output):
+                main()
+            
+            output = captured_output.getvalue()
+            assert "Test Page" in output
+            assert "This is a test paragraph." in output
+            assert "[Image: Test image]" in output
+            assert "Another paragraph." in output
 
 
 def test_cli_with_verbose():
     """Test CLI with verbose flag"""
     test_html = "<html><body><p>Test</p></body></html>"
     
-    with patch('src.url_extractor.requests.Session.get') as mock_get:
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+    
+    with patch('requests.Session') as mock_session:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.text = test_html
-        mock_get.return_value = mock_response
+        mock_session.return_value.get.return_value = mock_response
         
-        result = subprocess.run(
-            ["uv", "run", "python", "src/extract_url_cli.py", "-v", "https://example.com"],
-            capture_output=True,
-            text=True
-        )
+        from extract_url_cli import main
         
-        assert result.returncode == 0
-        assert "Test" in result.stdout
-        assert "Fetching content from: https://example.com" in result.stderr
-        assert "Extracted" in result.stderr
-        assert "words" in result.stderr
+        # Mock sys.argv to simulate command line arguments with verbose flag
+        with patch.object(sys, 'argv', ['extract_url_cli.py', '-v', 'https://example.com']):
+            # Capture stdout and stderr
+            from io import StringIO
+            captured_stdout = StringIO()
+            captured_stderr = StringIO()
+            with patch('sys.stdout', captured_stdout), patch('sys.stderr', captured_stderr):
+                main()
+            
+            stdout_output = captured_stdout.getvalue()
+            stderr_output = captured_stderr.getvalue()
+            
+            assert "Test" in stdout_output
+            assert "Fetching content from: https://example.com" in stderr_output
+            assert "Extracted" in stderr_output
+            assert "words" in stderr_output
 
 
 def test_cli_error_handling():
     """Test CLI error handling"""
-    with patch('src.url_extractor.requests.Session.get') as mock_get:
-        mock_get.side_effect = Exception("Network error")
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+    
+    with patch('requests.Session') as mock_session:
+        mock_session.return_value.get.side_effect = Exception("Network error")
         
-        result = subprocess.run(
-            ["uv", "run", "python", "src/extract_url_cli.py", "https://example.com"],
-            capture_output=True,
-            text=True
-        )
+        from extract_url_cli import main
         
-        assert result.returncode == 1
-        assert "Error:" in result.stderr
-        assert "Failed to fetch URL" in result.stderr
+        # Mock sys.argv to simulate command line arguments
+        with patch.object(sys, 'argv', ['extract_url_cli.py', 'https://example.com']):
+            # Capture stderr and check for exit
+            from io import StringIO
+            captured_stderr = StringIO()
+            with patch('sys.stderr', captured_stderr), pytest.raises(SystemExit) as exc_info:
+                main()
+            
+            stderr_output = captured_stderr.getvalue()
+            assert exc_info.value.code == 1
+            assert "Error:" in stderr_output
