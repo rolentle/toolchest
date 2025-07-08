@@ -22,6 +22,7 @@ from moshi_mlx.models.tts import (
 )
 
 from tts_engine import TTSEngine
+from config import AudioConfig, TTSConfig
 
 
 def main():
@@ -44,7 +45,7 @@ def main():
         help="HF repo in which to look for pre-computed voice embeddings.",
     )
     parser.add_argument(
-        "--voice", default="expresso/ex03-ex01_happy_001_channel1_334s.wav"
+        "--voice", default=TTSConfig.DEFAULT_VOICE
     )
     parser.add_argument(
         "--quantize",
@@ -81,7 +82,7 @@ def main():
                 return
             _pcm = engine.tts_model.mimi.decode_step(frame[:, :, None])
             _pcm = np.array(_pcm[0, 0])
-            _pcm = np.clip(_pcm, -1, 1)
+            _pcm = np.clip(_pcm, AudioConfig.AUDIO_CLIP_MIN, AudioConfig.AUDIO_CLIP_MAX)
             wav_frames.put_nowait(_pcm)
 
         def audio_callback(outdata, _a, _b, _c):
@@ -93,16 +94,16 @@ def main():
 
         with sd.OutputStream(
             samplerate=engine.sample_rate,
-            blocksize=1920,
-            channels=1,
+            blocksize=AudioConfig.DEFAULT_BLOCKSIZE,
+            channels=AudioConfig.DEFAULT_CHANNELS,
             callback=audio_callback,
         ):
             engine.generate_audio(text_to_tts, voice=args.voice, on_frame_callback=custom_on_frame)
-            time.sleep(3)
+            time.sleep(AudioConfig.INITIAL_PLAYBACK_DELAY)
             while True:
                 if wav_frames.qsize() == 0:
                     break
-                time.sleep(1)
+                time.sleep(AudioConfig.LOOP_PLAYBACK_DELAY)
     else:
         # Generate and save to file
         engine.generate_audio(text_to_tts, voice=args.voice)

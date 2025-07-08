@@ -3,6 +3,11 @@ from bs4 import BeautifulSoup
 from typing import Optional
 import re
 
+try:
+    from .config import URLExtractorConfig
+except ImportError:
+    from config import URLExtractorConfig
+
 
 class URLExtractor:
     """Extract human-readable text from URLs for TTS processing."""
@@ -10,7 +15,7 @@ class URLExtractor:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (compatible; TTS-TextExtractor/1.0)'
+            'User-Agent': URLExtractorConfig.USER_AGENT
         })
     
     def fetch_url(self, url: str) -> str:
@@ -26,7 +31,7 @@ class URLExtractor:
             Exception: If the URL cannot be fetched
         """
         try:
-            response = self.session.get(url, timeout=10)
+            response = self.session.get(url, timeout=URLExtractorConfig.REQUEST_TIMEOUT)
             response.raise_for_status()
             return response.text
         except Exception as e:
@@ -44,10 +49,10 @@ class URLExtractor:
         if not html:
             return ""
             
-        soup = BeautifulSoup(html, 'lxml')
+        soup = BeautifulSoup(html, URLExtractorConfig.DEFAULT_PARSER)
         
         # Remove script and style elements
-        for script in soup(["script", "style"]):
+        for script in soup(URLExtractorConfig.REMOVE_ELEMENTS):
             script.decompose()
         
         # Process the content
@@ -55,7 +60,7 @@ class URLExtractor:
         processed_texts = set()  # Track processed text to avoid duplicates
         
         # Process block-level elements that should be separated
-        for element in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li']):
+        for element in soup.find_all(URLExtractorConfig.TEXT_ELEMENTS):
             # Get text with spaces preserved between inline elements
             text = element.get_text(separator=' ', strip=True)
             if text and text not in processed_texts:

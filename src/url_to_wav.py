@@ -9,12 +9,14 @@ import sys
 try:
     from .url_extractor import URLExtractor
     from .tts_engine import TTSEngine
+    from .config import TTSConfig, URLExtractorConfig
 except ImportError:
     from url_extractor import URLExtractor
     from tts_engine import TTSEngine
+    from config import TTSConfig, URLExtractorConfig
 
 
-def convert_url_to_wav(url, output_path, voice="expresso/ex03-ex01_happy_001_channel1_334s.wav", quantize=None, verbose=False):
+def convert_url_to_wav(url, output_path, voice=TTSConfig.DEFAULT_VOICE, quantize=None, verbose=False):
     """
     Convert URL content to speech and save as WAV file.
     
@@ -42,7 +44,7 @@ def convert_url_to_wav(url, output_path, voice="expresso/ex03-ex01_happy_001_cha
             
         if verbose:
             print(f"Extracted {len(text)} characters of text")
-            print("First 200 characters:", text[:200], "...")
+            print(f"First {URLExtractorConfig.VERBOSE_PREVIEW_LENGTH} characters:", text[:URLExtractorConfig.VERBOSE_PREVIEW_LENGTH], "...")
     except Exception as e:
         if verbose:
             print(f"Error extracting text: {e}", file=sys.stderr)
@@ -93,13 +95,13 @@ def main():
     parser.add_argument("output", help="Output WAV file path")
     parser.add_argument(
         "-v", "--voice",
-        default="expresso/ex03-ex01_happy_001_channel1_334s.wav",
+        default=TTSConfig.DEFAULT_VOICE,
         help="Voice to use for TTS"
     )
     parser.add_argument(
         "-q", "--quantize",
         type=int,
-        choices=[4, 8],
+        choices=TTSConfig.ALLOWED_QUANTIZATION_LEVELS,
         help="Quantization bits for the model"
     )
     parser.add_argument(

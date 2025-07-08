@@ -15,6 +15,8 @@ from moshi_mlx.models.tts import (
 )
 from moshi_mlx.utils.loaders import hf_get
 
+from .config import AudioConfig, TTSConfig
+
 
 class TTSEngine:
     def __init__(
@@ -38,21 +40,21 @@ class TTSEngine:
         print(make_log(level, msg))
         
     def initialize(self):
-        mx.random.seed(299792458)
+        mx.random.seed(TTSConfig.RANDOM_SEED)
         
         self.log("info", "retrieving checkpoints")
         
-        raw_config = hf_get("config.json", self.hf_repo)
+        raw_config = hf_get(TTSConfig.CONFIG_FILE_NAME, self.hf_repo)
         with open(hf_get(raw_config), "r") as fobj:
             raw_config = json.load(fobj)
         
         mimi_weights = hf_get(raw_config["mimi_name"], self.hf_repo)
-        moshi_name = raw_config.get("moshi_name", "model.safetensors")
+        moshi_name = raw_config.get("moshi_name", TTSConfig.DEFAULT_MODEL_NAME)
         moshi_weights = hf_get(moshi_name, self.hf_repo)
         tokenizer = hf_get(raw_config["tokenizer_name"], self.hf_repo)
         lm_config = models.LmConfig.from_config_dict(raw_config)
         self.model = models.Lm(lm_config)
-        self.model.set_dtype(mx.bfloat16)
+        self.model.set_dtype(getattr(mx, TTSConfig.DEFAULT_MODEL_DTYPE))
         
         self.log("info", f"loading model weights from {moshi_weights}")
         self.model.load_pytorch_weights(str(moshi_weights), lm_config, strict=True)
@@ -78,18 +80,18 @@ class TTSEngine:
             self.audio_tokenizer,
             self.text_tokenizer,
             voice_repo=self.voice_repo,
-            temp=0.6,
-            cfg_coef=1,
-            max_padding=8,
-            initial_padding=2,
-            final_padding=2,
-            padding_bonus=0,
+            temp=TTSConfig.DEFAULT_TEMP,
+            cfg_coef=TTSConfig.DEFAULT_CFG_COEF,
+            max_padding=TTSConfig.DEFAULT_MAX_PADDING,
+            initial_padding=TTSConfig.DEFAULT_INITIAL_PADDING,
+            final_padding=TTSConfig.DEFAULT_FINAL_PADDING,
+            padding_bonus=TTSConfig.DEFAULT_PADDING_BONUS,
             raw_config=raw_config,
         )
         
         if self.tts_model.valid_cfg_conditionings:
             cfg_coef_conditioning = self.tts_model.cfg_coef
-            self.tts_model.cfg_coef = 1.0
+            self.tts_model.cfg_coef = TTSConfig.DEFAULT_CFG_COEF
             self.cfg_is_no_text = False
             self.cfg_is_no_prefix = False
         else:
@@ -103,13 +105,13 @@ class TTSEngine:
         if (frame == -1).any():
             return
         _pcm = self.tts_model.mimi.decode_step(frame[:, :, None])
-        _pcm = np.array(mx.clip(_pcm[0, 0], -1, 1))
+        _pcm = np.array(mx.clip(_pcm[0, 0], AudioConfig.AUDIO_CLIP_MIN, AudioConfig.AUDIO_CLIP_MAX))
         self.wav_frames.put_nowait(_pcm)
         
     def generate_audio(
         self,
         text: str,
-        voice: str = "expresso/ex03-ex01_happy_001_channel1_334s.wav",
+        voice: str = TTSConfig.DEFAULT_VOICE,
         on_frame_callback: Optional[Callable] = None,
     ):
         if self.tts_model is None:

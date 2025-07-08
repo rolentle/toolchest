@@ -9,7 +9,10 @@ Usage:
 
 import argparse
 import sys
-from url_extractor import URLExtractor
+try:
+    from .url_extractor import URLExtractor
+except ImportError:
+    from url_extractor import URLExtractor
 
 
 def main():
