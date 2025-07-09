@@ -116,3 +116,51 @@ class URLExtractor:
         html = self.fetch_url(url)
         text = self.extract_text(html)
         return self.format_for_tts(text)
+    
+    def extract_metadata(self, html: str, url: str) -> dict:
+        """Extract metadata including title and text from HTML.
+        
+        Args:
+            html: The HTML content
+            url: The source URL
+            
+        Returns:
+            Dictionary containing 'title', 'text', and 'url'
+        """
+        soup = BeautifulSoup(html, URLExtractorConfig.DEFAULT_PARSER)
+        
+        # Extract title
+        title = ""
+        title_tag = soup.find('title')
+        if title_tag:
+            title = title_tag.get_text(strip=True)
+        else:
+            # Fallback to first heading
+            first_heading = soup.find(['h1', 'h2', 'h3'])
+            if first_heading:
+                title = first_heading.get_text(strip=True)
+        
+        # Extract text content
+        text = self.extract_text(html)
+        formatted_text = self.format_for_tts(text)
+        
+        return {
+            'title': title,
+            'text': formatted_text,
+            'url': url
+        }
+    
+    def extract_from_url_with_metadata(self, url: str) -> dict:
+        """Extract text and metadata from a URL.
+        
+        Args:
+            url: The URL to extract from
+            
+        Returns:
+            Dictionary containing 'title', 'text', and 'url'
+            
+        Raises:
+            Exception: If the URL cannot be processed
+        """
+        html = self.fetch_url(url)
+        return self.extract_metadata(html, url)

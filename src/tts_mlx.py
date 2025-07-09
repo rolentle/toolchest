@@ -21,8 +21,8 @@ from moshi_mlx.models.tts import (
     DEFAULT_DSM_TTS_VOICE_REPO,
 )
 
-from tts_engine import TTSEngine
-from config import AudioConfig, TTSConfig
+from .tts_engine import TTSEngine
+from .config import AudioConfig, TTSConfig
 
 
 def main():

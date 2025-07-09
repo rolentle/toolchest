@@ -38,3 +38,19 @@ class URLExtractorConfig:
     TEXT_ELEMENTS = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"]
     REMOVE_ELEMENTS = ["script", "style"]
     VERBOSE_PREVIEW_LENGTH = 200  # characters
+
+
+class OllamaConfig:
+    """Ollama integration configuration."""
+    DEFAULT_MODEL = "gemma2:latest"
+    FILENAME_PROMPT_TEMPLATE = """Generate a short, descriptive filename (3-5 words) for an audio file containing the following text. 
+    The filename should capture the main topic or theme. 
+    Use only lowercase letters, numbers, and underscores. 
+    Do not include file extensions or special characters.
+    
+    Text: {text}
+    
+    Filename:"""
+    MAX_FILENAME_LENGTH = 50
+    FILENAME_GENERATION_TIMEOUT = 10  # seconds
+    MAX_TEXT_LENGTH_FOR_SUMMARY = 1000  # characters to send to Ollama

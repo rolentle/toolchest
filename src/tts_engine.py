@@ -15,7 +15,10 @@ from moshi_mlx.models.tts import (
 )
 from moshi_mlx.utils.loaders import hf_get
 
-from .config import AudioConfig, TTSConfig
+try:
+    from .config import AudioConfig, TTSConfig
+except ImportError:
+    from config import AudioConfig, TTSConfig
 
 
 class TTSEngine:

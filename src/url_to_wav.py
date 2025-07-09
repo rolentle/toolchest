@@ -10,13 +10,15 @@ try:
     from .url_extractor import URLExtractor
     from .tts_engine import TTSEngine
     from .config import TTSConfig, URLExtractorConfig
+    from .filename_generator import FilenameGenerator
 except ImportError:
     from url_extractor import URLExtractor
     from tts_engine import TTSEngine
     from config import TTSConfig, URLExtractorConfig
+    from filename_generator import FilenameGenerator
 
 
-def convert_url_to_wav(url, output_path, voice=TTSConfig.DEFAULT_VOICE, quantize=None, verbose=False):
+def convert_url_to_wav(url, output_path=None, voice=TTSConfig.DEFAULT_VOICE, quantize=None, verbose=False):
     """
     Convert URL content to speech and save as WAV file.
     
@@ -36,7 +38,15 @@ def convert_url_to_wav(url, output_path, voice=TTSConfig.DEFAULT_VOICE, quantize
     
     extractor = URLExtractor()
     try:
-        text = extractor.extract_from_url(url)
+        # Use metadata extraction if we need to generate filename
+        if output_path is None:
+            metadata = extractor.extract_from_url_with_metadata(url)
+            text = metadata['text']
+            title = metadata.get('title', '')
+        else:
+            text = extractor.extract_from_url(url)
+            title = None
+            
         if not text:
             if verbose:
                 print("No text extracted from URL", file=sys.stderr)
@@ -73,6 +83,19 @@ def convert_url_to_wav(url, output_path, voice=TTSConfig.DEFAULT_VOICE, quantize
     # Concatenate all frames
     audio = np.concatenate(frames)
     
+    # Generate filename if not provided
+    if output_path is None:
+        if verbose:
+            print("Generating filename...")
+        filename_gen = FilenameGenerator()
+        output_path = filename_gen.generate_from_content(
+            text,
+            title=title if 'title' in locals() else None,
+            url=url
+        )
+        if verbose:
+            print(f"Generated filename: {output_path}")
+    
     # Save to WAV file
     if verbose:
         print(f"Saving audio to: {output_path}")
@@ -92,7 +115,11 @@ def main():
         description="Convert URL content to speech and save as WAV file"
     )
     parser.add_argument("url", help="URL to extract text from")
-    parser.add_argument("output", help="Output WAV file path")
+    parser.add_argument(
+        "-o", "--output",
+        dest="output",
+        help="Output WAV file path (auto-generated if not specified)"
+    )
     parser.add_argument(
         "-v", "--voice",
         default=TTSConfig.DEFAULT_VOICE,

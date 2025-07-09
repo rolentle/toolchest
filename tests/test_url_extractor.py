@@ -173,3 +173,66 @@ class TestURLExtractor:
         assert "After image" in result
         # Should not include any image placeholder for images without alt
         assert "[Image:" not in result
+    
+    def test_extract_metadata(self):
+        """Test extraction of metadata including title"""
+        html = """
+        <html>
+            <head>
+                <title>Test Page Title</title>
+            </head>
+            <body>
+                <h1>Main Heading</h1>
+                <p>Some content here.</p>
+            </body>
+        </html>
+        """
+        result = self.extractor.extract_metadata(html, "https://example.com/page")
+        
+        assert result['title'] == "Test Page Title"
+        assert result['url'] == "https://example.com/page"
+        assert "Main Heading" in result['text']
+        assert "Some content here." in result['text']
+    
+    def test_extract_metadata_no_title(self):
+        """Test metadata extraction when no title tag exists"""
+        html = """
+        <html>
+            <body>
+                <h1>First Heading</h1>
+                <p>Content without title tag.</p>
+            </body>
+        </html>
+        """
+        result = self.extractor.extract_metadata(html, "https://example.com")
+        
+        # Should fallback to first heading or empty string
+        assert result['title'] in ["First Heading", ""]
+        assert result['url'] == "https://example.com"
+        assert "Content without title tag." in result['text']
+    
+    def test_extract_from_url_with_metadata(self):
+        """Test the full extraction pipeline returning metadata"""
+        with patch('src.url_extractor.requests.Session.get') as mock_get:
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.text = """
+            <html>
+                <head>
+                    <title>Article Title</title>
+                </head>
+                <body>
+                    <h1>Main Article</h1>
+                    <p>Article content.</p>
+                </body>
+            </html>
+            """
+            mock_get.return_value = mock_response
+            
+            result = self.extractor.extract_from_url_with_metadata("https://example.com/article")
+            
+            assert isinstance(result, dict)
+            assert result['title'] == "Article Title"
+            assert result['url'] == "https://example.com/article"
+            assert "Main Article" in result['text']
+            assert "Article content." in result['text']
