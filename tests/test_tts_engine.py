@@ -44,14 +44,11 @@ class TestTTSEngine:
         assert engine.voice_repo == "custom/voice"
         assert engine.quantize == 4
 
-    def test_log(self, capsys):
-        with patch('moshi_mlx.client_utils.make_log') as mock_make_log:
-            mock_make_log.return_value = "[INFO] test message"
-            engine = TTSEngine()
-            engine.log("info", "test message")
-            captured = capsys.readouterr()
-            assert "[INFO] test message" in captured.out
-            mock_make_log.assert_called_once_with("info", "test message")
+    def test_logger_initialization(self):
+        """Test that logger is properly initialized"""
+        engine = TTSEngine()
+        assert hasattr(engine, 'logger')
+        assert engine.logger.name == "TTSEngine"
 
     @patch('src.tts_engine.hf_get')
     @patch('src.tts_engine.models')

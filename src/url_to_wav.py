@@ -11,11 +11,13 @@ try:
     from .tts_engine import TTSEngine
     from .config import TTSConfig, URLExtractorConfig
     from .filename_generator import FilenameGenerator
+    from .logger import Logger
 except ImportError:
     from url_extractor import URLExtractor
     from tts_engine import TTSEngine
     from config import TTSConfig, URLExtractorConfig
     from filename_generator import FilenameGenerator
+    from logger import Logger
 
 
 def convert_url_to_wav(url, output_path=None, voice=TTSConfig.DEFAULT_VOICE, quantize=None, verbose=False):
@@ -32,9 +34,11 @@ def convert_url_to_wav(url, output_path=None, voice=TTSConfig.DEFAULT_VOICE, qua
     Returns:
         bool: True if successful, False otherwise
     """
+    # Initialize logger
+    logger = Logger("url_to_wav", level="debug" if verbose else "info")
+    
     # Extract text from URL
-    if verbose:
-        print(f"Extracting text from: {url}")
+    logger.info(f"Starting URL to WAV conversion for: {url}")
     
     extractor = URLExtractor()
     try:
@@ -48,36 +52,30 @@ def convert_url_to_wav(url, output_path=None, voice=TTSConfig.DEFAULT_VOICE, qua
             title = None
             
         if not text:
-            if verbose:
-                print("No text extracted from URL", file=sys.stderr)
+            logger.error("No text extracted from URL")
             return False
             
-        if verbose:
-            print(f"Extracted {len(text)} characters of text")
-            print(f"First {URLExtractorConfig.VERBOSE_PREVIEW_LENGTH} characters:", text[:URLExtractorConfig.VERBOSE_PREVIEW_LENGTH], "...")
+        logger.info(f"Extracted {len(text)} characters of text")
+        logger.debug(f"First {URLExtractorConfig.VERBOSE_PREVIEW_LENGTH} characters: {text[:URLExtractorConfig.VERBOSE_PREVIEW_LENGTH]}...")
     except Exception as e:
-        if verbose:
-            print(f"Error extracting text: {e}", file=sys.stderr)
+        logger.error(f"Failed to extract text: {e}")
         return False
     
     # Initialize TTS engine
-    if verbose:
-        print("Initializing TTS engine...")
+    logger.info("Initializing TTS engine...")
         
     engine = TTSEngine(quantize=quantize)
     engine.initialize()
     
     # Generate audio
-    if verbose:
-        print(f"Generating audio with voice: {voice}")
+    logger.info(f"Generating audio with voice: {voice}")
         
     result = engine.generate_audio(text, voice=voice)
     
     # Get all audio frames
     frames = engine.get_audio_frames()
     if not frames:
-        if verbose:
-            print("No audio frames generated", file=sys.stderr)
+        logger.error("No audio frames generated")
         return False
     
     # Concatenate all frames
@@ -85,27 +83,23 @@ def convert_url_to_wav(url, output_path=None, voice=TTSConfig.DEFAULT_VOICE, qua
     
     # Generate filename if not provided
     if output_path is None:
-        if verbose:
-            print("Generating filename...")
+        logger.info("Generating filename...")
         filename_gen = FilenameGenerator()
         output_path = filename_gen.generate_from_content(
             text,
             title=title if 'title' in locals() else None,
             url=url
         )
-        if verbose:
-            print(f"Generated filename: {output_path}")
+        logger.info(f"Generated filename: {output_path}")
     
     # Save to WAV file
-    if verbose:
-        print(f"Saving audio to: {output_path}")
-        print(f"Sample rate: {engine.sample_rate} Hz")
-        print(f"Duration: {len(audio) / engine.sample_rate:.2f} seconds")
+    logger.info(f"Saving audio to: {output_path}")
+    logger.info(f"Sample rate: {engine.sample_rate} Hz")
+    logger.info(f"Duration: {len(audio) / engine.sample_rate:.2f} seconds")
         
     sf.write(output_path, audio, engine.sample_rate)
     
-    if verbose:
-        print("Done!")
+    logger.info("Conversion completed successfully")
     
     return True
 

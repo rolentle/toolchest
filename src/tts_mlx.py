@@ -23,6 +23,7 @@ from moshi_mlx.models.tts import (
 
 from .tts_engine import TTSEngine
 from .config import AudioConfig, TTSConfig
+from .logger import Logger
 
 
 def main():
@@ -54,6 +55,9 @@ def main():
     )
     args = parser.parse_args()
 
+    # Initialize logger
+    logger = Logger("tts_mlx")
+
     # Initialize the TTS engine
     engine = TTSEngine(
         hf_repo=args.hf_repo,
@@ -63,7 +67,7 @@ def main():
     engine.initialize()
 
     # Read input text
-    engine.log("info", f"reading input from {args.inp}")
+    logger.info(f"reading input from {args.inp}")
     if args.inp == "-":
         if sys.stdin.isatty():  # Interactive
             print("Enter text to synthesize (Ctrl+D to end input):")

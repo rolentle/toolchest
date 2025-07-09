@@ -84,8 +84,9 @@ def test_cli_with_verbose():
             stderr_output = captured_stderr.getvalue()
             
             assert "Test" in stdout_output
-            assert "Fetching content from: https://example.com" in stderr_output
-            assert "Extracted" in stderr_output
+            # Check for log messages in stderr (logger outputs formatted messages)
+            assert "Processing URL: https://example.com" in stderr_output
+            assert "Successfully extracted" in stderr_output
             assert "words" in stderr_output
 
 
@@ -108,4 +109,5 @@ def test_cli_error_handling():
             
             stderr_output = captured_stderr.getvalue()
             assert exc_info.value.code == 1
-            assert "Error:" in stderr_output
+            # Check for formatted error message from logger
+            assert "Failed to extract text:" in stderr_output or "ERROR" in stderr_output

@@ -5,14 +5,17 @@ import re
 
 try:
     from .config import URLExtractorConfig
+    from .logger import Logger
 except ImportError:
     from config import URLExtractorConfig
+    from logger import Logger
 
 
 class URLExtractor:
     """Extract human-readable text from URLs for TTS processing."""
     
     def __init__(self):
+        self.logger = Logger("URLExtractor")
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': URLExtractorConfig.USER_AGENT
@@ -31,10 +34,13 @@ class URLExtractor:
             Exception: If the URL cannot be fetched
         """
         try:
+            self.logger.info(f"Fetching URL: {url}")
             response = self.session.get(url, timeout=URLExtractorConfig.REQUEST_TIMEOUT)
             response.raise_for_status()
+            self.logger.info(f"Successfully fetched {len(response.text)} characters from {url}")
             return response.text
         except Exception as e:
+            self.logger.error(f"Failed to fetch URL {url}: {e}")
             raise Exception(f"Failed to fetch URL: {e}")
     
     def extract_text(self, html: str) -> str:
@@ -47,8 +53,10 @@ class URLExtractor:
             Extracted text with proper formatting for TTS
         """
         if not html:
+            self.logger.warning("Empty HTML content provided")
             return ""
             
+        self.logger.debug("Parsing HTML content")
         soup = BeautifulSoup(html, URLExtractorConfig.DEFAULT_PARSER)
         
         # Remove script and style elements
@@ -77,7 +85,9 @@ class URLExtractor:
                     text_parts.append(img_text)
         
         # Join with double newlines for paragraph spacing
-        return '\n\n'.join(text_parts)
+        result = '\n\n'.join(text_parts)
+        self.logger.info(f"Extracted {len(text_parts)} text blocks, total {len(result)} characters")
+        return result
     
     def format_for_tts(self, text: str) -> str:
         """Format text for optimal TTS processing.

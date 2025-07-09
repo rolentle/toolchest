@@ -7,8 +7,10 @@ from typing import Optional
 
 try:
     from .config import OllamaConfig
+    from .logger import Logger
 except ImportError:
     from config import OllamaConfig
+    from logger import Logger
 
 
 class FilenameGenerator:
@@ -21,6 +23,7 @@ class FilenameGenerator:
             model: Ollama model to use (defaults to OllamaConfig.DEFAULT_MODEL)
         """
         self.model = model or OllamaConfig.DEFAULT_MODEL
+        self.logger = Logger("FilenameGenerator")
     
     def sanitize_filename(self, filename: str) -> str:
         """Sanitize a filename for filesystem compatibility.
@@ -98,6 +101,7 @@ class FilenameGenerator:
             prompt = prompt.format(text=prompt_text)
             
             # Call Ollama
+            self.logger.info(f"Generating filename using Ollama model: {self.model}")
             response = ollama.chat(
                 model=self.model,
                 messages=[{
@@ -111,6 +115,7 @@ class FilenameGenerator:
             
             # Extract filename from response
             generated_name = response['message']['content'].strip()
+            self.logger.info(f"Ollama generated filename: {generated_name}")
             
             # Sanitize and add timestamp
             filename = self.sanitize_filename(generated_name)
@@ -119,11 +124,14 @@ class FilenameGenerator:
             return f"{filename}.wav"
             
         except Exception as e:
+            self.logger.warning(f"Failed to generate filename with Ollama: {e}")
             # Fallback to URL-based naming if Ollama fails
             if url:
+                self.logger.info("Falling back to URL-based filename generation")
                 return self.generate_from_url(url)
             else:
                 # Final fallback
+                self.logger.info("Using default filename")
                 filename = self.add_timestamp("audio_file")
                 return f"{filename}.wav"
     

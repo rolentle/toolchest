@@ -11,8 +11,10 @@ import argparse
 import sys
 try:
     from .url_extractor import URLExtractor
+    from .logger import Logger
 except ImportError:
     from url_extractor import URLExtractor
+    from logger import Logger
 
 
 def main():
@@ -33,29 +35,30 @@ def main():
     
     args = parser.parse_args()
     
+    # Create logger
+    logger = Logger("extract_url_cli", level="debug" if args.verbose else "info")
+    
     # Create extractor instance
     extractor = URLExtractor()
     
     try:
-        if args.verbose:
-            print(f"Fetching content from: {args.url}", file=sys.stderr)
+        logger.info(f"Processing URL: {args.url}")
         
         # Extract text from URL
         text = extractor.extract_from_url(args.url)
         
         if not text:
-            print("No text content found at the URL.", file=sys.stderr)
+            logger.error("No text content found at the URL.")
             sys.exit(1)
         
         # Output to stdout for piping
         print(text)
         
-        if args.verbose:
-            word_count = len(text.split())
-            print(f"\nExtracted {word_count} words", file=sys.stderr)
+        word_count = len(text.split())
+        logger.info(f"Successfully extracted {word_count} words")
             
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error(f"Failed to extract text: {e}")
         sys.exit(1)
 
 

@@ -17,8 +17,10 @@ from moshi_mlx.utils.loaders import hf_get
 
 try:
     from .config import AudioConfig, TTSConfig
+    from .logger import Logger
 except ImportError:
     from config import AudioConfig, TTSConfig
+    from logger import Logger
 
 
 class TTSEngine:
@@ -37,15 +39,12 @@ class TTSEngine:
         self.tts_model = None
         self.mimi = None
         self.wav_frames = queue.Queue()
-        
-    def log(self, level: str, msg: str):
-        from moshi_mlx.client_utils import make_log
-        print(make_log(level, msg))
+        self.logger = Logger("TTSEngine")
         
     def initialize(self):
         mx.random.seed(TTSConfig.RANDOM_SEED)
         
-        self.log("info", "retrieving checkpoints")
+        self.logger.info("retrieving checkpoints")
         
         raw_config = hf_get(TTSConfig.CONFIG_FILE_NAME, self.hf_repo)
         with open(hf_get(raw_config), "r") as fobj:
@@ -59,20 +58,20 @@ class TTSEngine:
         self.model = models.Lm(lm_config)
         self.model.set_dtype(getattr(mx, TTSConfig.DEFAULT_MODEL_DTYPE))
         
-        self.log("info", f"loading model weights from {moshi_weights}")
+        self.logger.info(f"loading model weights from {moshi_weights}")
         self.model.load_pytorch_weights(str(moshi_weights), lm_config, strict=True)
         
         if self.quantize is not None:
-            self.log("info", f"quantizing model to {self.quantize} bits")
+            self.logger.info(f"quantizing model to {self.quantize} bits")
             nn.quantize(self.model.depformer, bits=self.quantize)
             for layer in self.model.transformer.layers:
                 nn.quantize(layer.self_attn, bits=self.quantize)
                 nn.quantize(layer.gating, bits=self.quantize)
         
-        self.log("info", f"loading the text tokenizer from {tokenizer}")
+        self.logger.info(f"loading the text tokenizer from {tokenizer}")
         self.text_tokenizer = sentencepiece.SentencePieceProcessor(str(tokenizer))  # type: ignore
         
-        self.log("info", f"loading the audio tokenizer {mimi_weights}")
+        self.logger.info(f"loading the audio tokenizer {mimi_weights}")
         generated_codebooks = lm_config.generated_codebooks
         self.audio_tokenizer = models.mimi.Mimi(models.mimi_202407(generated_codebooks))
         self.audio_tokenizer.load_pytorch_weights(str(mimi_weights), strict=True)
@@ -133,7 +132,7 @@ class TTSEngine:
         
         callback = on_frame_callback or self._on_frame
         
-        self.log("info", "starting the inference loop")
+        self.logger.info("starting the inference loop")
         begin = time.time()
         result = self.tts_model.generate(
             all_entries,
@@ -146,7 +145,7 @@ class TTSEngine:
         total_duration = frames.shape[0] * frames.shape[-1] / self.mimi.frame_rate
         time_taken = time.time() - begin
         total_speed = total_duration / time_taken
-        self.log("info", f"[LM] took {time_taken:.2f}s, total speed {total_speed:.2f}x")
+        self.logger.info(f"[LM] took {time_taken:.2f}s, total speed {total_speed:.2f}x")
         
         return result
         
